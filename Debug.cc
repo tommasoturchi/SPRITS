@@ -1,8 +1,10 @@
-#include <Camera.hpp>
+#include <SPRITS.hpp>
 
 #include <FL/Fl.H>
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Box.H>
+
+using namespace SPRITS;
 
 class FPS : public AbstractCameraObserverDecorator
 {

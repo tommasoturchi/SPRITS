@@ -1,12 +1,12 @@
-#include <Xtion.cc>
+#include <OpenNI.cc>
 #include <Debug.cc>
 
 #include <Carbon/Carbon.h>
 
-class XtionObserver : public AbstractCameraObserver
+class OpenNIObserver : public AbstractCameraObserver
 {
 public:
-	XtionObserver(Camera *c) : AbstractCameraObserver(c) { }
+	OpenNIObserver(Camera *c) : AbstractCameraObserver(c) { }
 	void updateColor() {
 		return;
 	}
@@ -24,11 +24,15 @@ Boolean isPressed( unsigned short inKeyCode )
 	
 int main(int argc, char **argv)
 {
-	Camera* xt = new Xtion();
-	AbstractCameraObserverDecorator* sprits = new DebugStream(new FPS(new XtionObserver(xt), 50));
-	while (!isPressed(0x24))
-		continue;
-	delete sprits;
-	delete xt;
-	return 0;
+	try {
+		Camera* xt = new OpenNI();
+		AbstractCameraObserverDecorator* sprits = new DebugStream(new FPS(new OpenNIObserver(xt), 50));
+		while (!isPressed(0x24))
+			continue;
+		delete sprits;
+		delete xt;
+	} catch (std::exception& e) {
+		std::cout << "ERROR: " << e.what() << std::endl;
+	}
+	exit(0);
 }
