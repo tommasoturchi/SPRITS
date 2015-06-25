@@ -1,4 +1,7 @@
-#include <SPRITS.hpp>
+#ifndef OPENNI_CC
+#define OPENNI_CC
+
+#include <Camera.hpp>
 
 #include <OpenNI.h>
 
@@ -42,8 +45,8 @@ public:
 			throw std::runtime_error("Couldn't find any depth stream!");
 		}
 
-		colorListener.cb = [&](cv::Mat3b _color){ color = _color; notifyColor(); };
-		depthListener.cb = [&](cv::Mat1s _depth){ depth = _depth; notifyDepth(); };
+		colorListener.cb = [&](cv::Mat3b _color){ color = _color; notifyColorObservers(); };
+		depthListener.cb = [&](cv::Mat1s _depth){ depth = _depth; notifyDepthObservers(); };
 		colorStream.addNewFrameListener(&colorListener);
 		depthStream.addNewFrameListener(&depthListener);
 
@@ -65,13 +68,9 @@ public:
 	cv::Mat getColorFrame() {
 		return color;
 	}
-	cv::Size getColorSize() {
-		return cv::Size(320, 240);
-	}
 	cv::Mat getDepthFrame() {
 		return depth;
 	}
-	cv::Size getDepthSize() {
-		return cv::Size(320, 240);
-	}
 };
+
+#endif

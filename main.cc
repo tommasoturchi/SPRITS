@@ -1,16 +1,31 @@
-#include <OpenNI.cc>
-#include <Debug.cc>
+#include <plugins/OpenNI.cc>
+#include <plugins/Debug.cc>
 
 #include <Carbon/Carbon.h>
 
-class OpenNIObserver : public AbstractCameraObserver
-{
+#include <map>
+
+#include <Camera.hpp>
+
+class MapSurface : public SPRITS::Surface {
+	std::map<int, cv::Point> sur;
 public:
-	OpenNIObserver(Camera *c) : AbstractCameraObserver(c) { }
-	void updateColor() {
-		return;
+	MapSurface() { }
+	int size() {
+		return sur.size();
 	}
-	void updateDepth() {
+	cv::Point getPosition(int id) {
+		return sur[id];
+	}
+	void setPosition(int id, cv::Point pos) {
+		sur[id] = pos;
+	}
+};
+
+class MyCameraColorObserver : public SPRITS::AbstractCameraColorObserver {
+public:
+	MyCameraColorObserver(SPRITS::Camera *c, SPRITS::Surface *s) : AbstractCameraColorObserver(c, s) { }
+	void update() {
 		return;
 	}
 };
@@ -25,11 +40,13 @@ Boolean isPressed( unsigned short inKeyCode )
 int main(int argc, char **argv)
 {
 	try {
-		Camera* xt = new OpenNI();
-		AbstractCameraObserverDecorator* sprits = new DebugStream(new FPS(new OpenNIObserver(xt), 50));
+		SPRITS::Camera* xt = new OpenNI();
+		Surface* s = new MapSurface();
+		AbstractCameraColorObserverDecorator* sprits = new ColorDebugStream(new ColorFPS(new MyCameraColorObserver(xt, s), 50), 320, 240);
 		while (!isPressed(0x24))
 			continue;
 		delete sprits;
+		delete s;
 		delete xt;
 	} catch (std::exception& e) {
 		std::cout << "ERROR: " << e.what() << std::endl;
