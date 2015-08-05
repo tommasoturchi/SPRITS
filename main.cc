@@ -1,33 +1,29 @@
-#include <plugins/OpenNI.cc>
-#include <plugins/Debug.cc>
+#include <cameras/OpenNI.cc>
+#include <cameras/VideoStream.cc>
+#include <trackers/Debug.cc>
+#include <trackers/ChiliTracker.cc>
+#include <manifolds/Plane.cc>
+#include <publishers/WebSocket.cc>
 
 #include <Carbon/Carbon.h>
 
+#include <functional>
 #include <map>
+#include <vector>
+#include <utility>
 
 #include <Camera.hpp>
+#include <Manifold.hpp>
 
-class MapSurface : public SPRITS::Surface {
-	std::map<int, cv::Point> sur;
-public:
-	MapSurface() { }
-	int size() {
-		return sur.size();
-	}
-	cv::Point getPosition(int id) {
-		return sur[id];
-	}
-	void setPosition(int id, cv::Point pos) {
-		sur[id] = pos;
-	}
-};
+using namespace SPRITS;
 
-class MyCameraColorObserver : public SPRITS::AbstractCameraColorObserver {
+class DebugTracker : public Debug<std::tuple<double, double, double>>
+{
 public:
-	MyCameraColorObserver(SPRITS::Camera *c, SPRITS::Surface *s) : AbstractCameraColorObserver(c, s) { }
-	void update() {
-		return;
-	}
+	DebugTracker(Camera *cam, Manifold<std::tuple<double, double, double>> *man, const NewFrameEvent& event) : Debug<std::tuple<double, double, double>>(cam, man, 1, event) { }
+	
+	template<typename E, typename... Events>
+	DebugTracker(Camera *cam, Manifold<std::tuple<double, double, double>> *man, E event, Events... events) : Debug<std::tuple<double, double, double>>(cam, man, 1, event, events...) { }
 };
 
 Boolean isPressed( unsigned short inKeyCode )
@@ -39,16 +35,20 @@ Boolean isPressed( unsigned short inKeyCode )
 	
 int main(int argc, char **argv)
 {
-	try {
-		SPRITS::Camera* xt = new OpenNI();
-		Surface* s = new MapSurface();
-		AbstractCameraColorObserverDecorator* sprits = new ColorDebugStream(new ColorFPS(new MyCameraColorObserver(xt, s), 50), 320, 240);
-		while (!isPressed(0x24))
-			continue;
-		delete sprits;
-		delete s;
-		delete xt;
-	} catch (std::exception& e) {
+	try
+	{
+		//Camera* cam = new OpenNI();
+		Camera* cam = new VideoStream();
+		Manifold<std::tuple<double, double, double>>* man = new Plane();
+		ManifoldObserver<std::tuple<double, double, double>>* mo = new WebSocket(man);
+		CameraObserver<std::tuple<double, double, double>>* co = new ChiliTracker(new DebugTracker(cam, man, NewFrameEvent::COLOR));
+		while (!isPressed(0x35))
+			cam->update();
+		delete mo;
+		delete co;
+		delete cam;
+	} catch (std::exception& e)
+	{
 		std::cout << "ERROR: " << e.what() << std::endl;
 	}
 	exit(0);
