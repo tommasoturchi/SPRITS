@@ -37,8 +37,8 @@ int main(int argc, char **argv)
 {
 	try
 	{
-		//Camera* cam = new OpenNI();
-		Camera* cam = new VideoStream();
+		Camera* cam = new OpenNI();
+		//Camera* cam = new VideoStream();
 		Manifold<std::tuple<double, double, double>>* man = new Plane();
 		ManifoldObserver<std::tuple<double, double, double>>* mo = new WebSocket(man);
 		CameraObserver<std::tuple<double, double, double>>* co = new ChiliTracker(new DebugTracker(cam, man, NewFrameEvent::COLOR));

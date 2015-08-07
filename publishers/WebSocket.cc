@@ -14,10 +14,20 @@ class WebSocket : public ManifoldObserver<std::tuple<double, double, double>>
 {
 private:
 	std::thread thread_;
+	websocketpp::server<websocketpp::config::asio> server_;
+    std::set<websocketpp::connection_hdl,std::owner_less<websocketpp::connection_hdl>> connections_;
+    std::mutex mutex_;
 public:
 	WebSocket(Manifold<std::tuple<double, double, double>>* man) : ManifoldObserver<std::tuple<double, double, double>>(man) {
 		std::cout << "Starting WebSocket Server... ";
-		thread_ = std::thread([this] { this->start(); });
+		thread_ = std::thread([this] {
+			server_.init_asio();
+			server_.set_open_handler(std::bind<void>([this](websocketpp::connection_hdl hdl){ std::lock_guard<std::mutex> lock(mutex_); connections_.insert(hdl); }, std::placeholders::_1));
+			server_.set_close_handler(std::bind<void>([this](websocketpp::connection_hdl hdl){ std::lock_guard<std::mutex> lock(mutex_); connections_.erase(hdl); }, std::placeholders::_1));
+	        server_.listen(9002);
+			server_.start_accept();
+			server_.run();
+		});
 		std::cout << "OK!" << std::endl;
 	}
 	
@@ -26,35 +36,19 @@ public:
 		thread_.join();
 	}
 	
-	void start()
-	{
-		websocketpp::server<websocketpp::config::asio> server_;
-		server_.init_asio();
-		server_.listen(9002);
-		server_.start_accept();
-		server_.run();
-		std::cout << "test" << std::endl;
-	}
-	
 	void fire(const ElementEvent& event, int id)
 	{
 		Json::Value message;
 		message["id"] = id;
-		switch (event)
-		{
-			case ElementEvent::ADD:
-			message["op"] = "ADD";
-			break;
-			case ElementEvent::UPDATE:
-			message["op"] = "UPDATE";
-			break;
-			case ElementEvent::REMOVE:
-			message["op"] = "REMOVE";
-			break;
-		}
-		Json::FastWriter fastWriter;
-		//for (auto conn : server_.get_connections()) server_.send(conn, fastWriter.write(message));
-		std::cout << fastWriter.write(message) << std::endl;
+		message["op"] = event.get_state_as_string();
+		message["pos"] = Json::Value();
+		message["pos"].append(std::get<0>(man_->getElement(id)));
+		message["pos"].append(std::get<1>(man_->getElement(id)));
+		message["angle"] = std::get<2>(man_->getElement(id));
+		
+        std::lock_guard<std::mutex> lock(mutex_);    
+        for (auto it : connections_)
+            server_.send(it,Json::FastWriter().write(message),websocketpp::frame::opcode::text);
 	}
 };
 
