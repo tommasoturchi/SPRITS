@@ -23,6 +23,7 @@
 *.lib
 
 # Executables
+SPRITS
 *.exe
 *.out
 *.app

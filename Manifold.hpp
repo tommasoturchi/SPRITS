@@ -46,6 +46,11 @@ namespace SPRITS
 		{
 			signal_(event, id);
 		}
+		
+		virtual ~Manifold()
+		{
+			signal_.disconnect_all_slots();
+		}
 	};
 	
 	template<typename T> class ManifoldObserver
@@ -55,6 +60,11 @@ namespace SPRITS
 		boost::signals2::connection con_;
 	public:
 		ManifoldObserver(Manifold<T>* man) : man_(man), con_(man->subscribe(boost::bind(&ManifoldObserver::fire, this, _1, _2))) { }
+		
+		virtual ~ManifoldObserver()
+		{
+			con_.disconnect();
+		}
 		
 		virtual void fire(const ElementEvent& event, int id) = 0;
 	};

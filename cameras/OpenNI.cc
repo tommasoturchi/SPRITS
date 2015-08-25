@@ -52,7 +52,7 @@ class OpenNI : public Camera
 	template<typename T>
 	struct Listener : public openni::VideoStream::NewFrameListener
 	{
-		std::function<void(T, openni::VideoFrameRef)> cb;
+		std::function<void(T)> cb;
 		virtual void onNewFrame(openni::VideoStream &stream)
 		{
 			openni::VideoFrameRef frame;
@@ -60,7 +60,8 @@ class OpenNI : public Camera
 			T img(frame.getHeight(), frame.getWidth());
 			for (int y = 0; y < img.rows; ++y)
 				memcpy(img.ptr(y), ((uint8_t *)frame.getData()) + y*frame.getStrideInBytes(), img.cols*img.elemSize());
-			if (cb) cb(img, frame);
+			frame.release();
+			if (cb && img.data) cb(img);
 		}
 	};
 	
@@ -68,7 +69,6 @@ class OpenNI : public Camera
 	Listener<cv::Mat1s> depthListener;
 	openni::Device device;
 	openni::VideoStream colorStream, depthStream;
-	cv::Size colorRes, depthRes;
 	
 	static std::vector<smode*> getSupportedModes(openni::SensorType sensor)
 	{
@@ -112,27 +112,16 @@ public:
 			throw std::runtime_error("Couldn't find any depth stream!");
 		}
 
-		colorListener.cb = [&](cv::Mat3b color_, openni::VideoFrameRef frame){
-			const openni::RGB888Pixel *pColor = (const openni::RGB888Pixel *)frame.getData();
-			for (int i = 0; i < frame.getHeight(); ++i)
-				for (int j = 0; j < frame.getWidth(); ++j)
-				{
-					color_.at<cv::Vec3b>(i, frame.getWidth() - (j + 1))[0] = pColor[i * frame.getWidth() + j].b;
-					color_.at<cv::Vec3b>(i, frame.getWidth() - (j + 1))[1] = pColor[i * frame.getWidth() + j].g;
-					color_.at<cv::Vec3b>(i, frame.getWidth() - (j + 1))[2] = pColor[i * frame.getWidth() + j].r;
-				}
-			notify(NewFrameEvent::COLOR, color_); };
-		depthListener.cb = [&](cv::Mat1s depth_, openni::VideoFrameRef frame){ notify(NewFrameEvent::DEPTH, depth_); };
+		colorListener.cb = [&](cv::Mat3b color_) { notify(NewFrameEvent::COLOR, color_); color_.release(); };
+		depthListener.cb = [&](cv::Mat1s depth_){ notify(NewFrameEvent::DEPTH, depth_); depth_.release(); };
 		colorStream.addNewFrameListener(&colorListener);
 		depthStream.addNewFrameListener(&depthListener);
 
 		colorStream.setVideoMode(device.getSensorInfo(openni::SENSOR_COLOR)->getSupportedVideoModes()[cmode]);
+		colorStream.setMirroringEnabled(false);
 		colorStream.start();
 		depthStream.setVideoMode(device.getSensorInfo(openni::SENSOR_DEPTH)->getSupportedVideoModes()[dmode]);
 		depthStream.start();
-		
-		colorRes = cv::Size(colorStream.getVideoMode().getResolutionX(), colorStream.getVideoMode().getResolutionY());
-		depthRes = cv::Size(depthStream.getVideoMode().getResolutionX(), depthStream.getVideoMode().getResolutionY());
 		
 		std::cout << "OK!" << std::endl;
 	}
@@ -140,10 +129,15 @@ public:
 	~OpenNI()
 	{
 		std::cout << "Stopping OpenNI... ";
+		
+		colorStream.removeNewFrameListener(&colorListener);
 		colorStream.stop();
 		colorStream.destroy();
+		
+		depthStream.removeNewFrameListener(&depthListener);
 		depthStream.stop();
 		depthStream.destroy();
+		
 		device.close();
 		openni::OpenNI::shutdown();
 		std::cout << "OK!" << std::endl;

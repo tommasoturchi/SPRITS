@@ -1,4 +1,5 @@
 #include <Camera.hpp>
+#include <Manifold.hpp>
 
 #include <time.h>
 
@@ -29,13 +30,14 @@ template<typename T> class Debug : public CameraObserver<T>
 {
 private:
 	std::map<NewFrameEvent, FPSCounter> counters_;
-	clock_t start = clock();
+	std::map<NewFrameEvent, clock_t> start_;
 	int seconds_;
 public:
 	Debug(Camera *cam, Manifold<T> *man, int seconds, const NewFrameEvent& event) : CameraObserver<T>(cam, man, event)
 	{
 		seconds_ = seconds;
 		counters_[event] = FPSCounter();
+		start_[event] = clock();
 	}
 	
 	template<typename E, typename... Events>
@@ -43,103 +45,79 @@ public:
 	{
 		seconds_ = seconds;
 		for (auto event : { event, [](const NewFrameEvent& event) { return event; }(std::forward<Events>(events)...) })
+		{
 			counters_[event] = FPSCounter();
+			start_[event] = clock();
+		}
 	}
 	
 	void fire(const NewFrameEvent& event, const cv::Mat& frame)
 	{
 		counters_[event].tick();
 		clock_t end = clock();
-		if ((end - start)/(double)CLOCKS_PER_SEC > seconds_)
+		if ((end - start_[event])/(double)CLOCKS_PER_SEC > seconds_)
 		{
-			std::cout << counters_[event].getFPS() << (event==NewFrameEvent::COLOR?" fps/color":" fps/depth") << std::endl;
-			start = end;
+			std::cout << (event==NewFrameEvent::COLOR?"Color":"Depth") << " sensor running at " << counters_[event].getFPS() << " FPS." << std::endl;
+			start_[event] = end;
 		}
 	}
 };
 
-/*class FPS
+class DebugWindow : public CameraObserver<std::tuple<double, double, double>>, public ManifoldObserver<std::tuple<double, double, double>>
 {
-	double lastTime, currentTime, fps;
-	struct timeval time;
-	int turn;
-	std::string sname;
+private:
+	Fl_Window *window;
+	Fl_Box *colorBox;
+	std::map<int, std::tuple<double, double, double>> ids;
 public:
-	FPS(int f, std::string s) : frequency(f), sname(s) {
-		gettimeofday(&time, NULL);
-		lastTime = time.tv_sec + time.tv_usec*1e-6;
-	}
-	void tick() {
-		gettimeofday(&time, NULL);
-		currentTime = time.tv_sec + time.tv_usec*1e-6;
-		fps = 1/(currentTime - lastTime);
-		lastTime = currentTime;
-		if (turn++ % frequency == 0)
-			std::cout << fps << " fps/" << sname << std::endl;
-	}
-protected:
-	int frequency;
-};
-
-class ColorFPS : public AbstractCameraObserverDecorator, public FPS
-{
-public:
-	ColorFPS(AbstractCameraObserver *o, int f) : AbstractCameraObserverDecorator(o), FPS(f, "color") { }
-	void update() {
-		tick();
-		AbstractCameraObserverDecorator::update();
-	}
-};
-
-class DebugStream
-{
-	int width, height;
-	std::string wname;
-public:
-	DebugStream(std::string wname) : wname(wname) {
-		cv::namedWindow(wname, cv::WINDOW_AUTOSIZE);
-		window = new Fl_Window(0, 0, w, h, wname.c_str());
+	DebugWindow(Camera *cam, Manifold<std::tuple<double, double, double>> *man) : CameraObserver<std::tuple<double, double, double>>(cam, man, NewFrameEvent::COLOR), ManifoldObserver<std::tuple<double, double, double>>(man)
+	{
+		window = new Fl_Window(0, 0, 640, 480, "Debug");
 		window->begin();
-		box = new Fl_Box(0, 0, w, h);
+		colorBox = new Fl_Box(0, 0, 640, 480);
 		window->end();
 		window->show();
-		iplImage = cvCreateImage(cvSize(w, h), 8, 3);
-		//FlImage = new Fl_RGB_Image((unsigned char*)iplImage->imageData, w, h, 3, iplImage->widthStep);
-		//Fl::awake();
 	}
-	~DebugStream() {
-		//delete box;
-		//delete window;
+	
+	void fire(const NewFrameEvent& event, const cv::Mat& frame)
+	{
+		if (window)
+		{
+			cv::Mat outImage;
+			outImage = frame;
+			for (auto id : ids)
+				cv::circle(outImage, cv::Point((int)(std::get<0>(id.second)*640), (int)(std::get<1>(id.second)*480)), 8, cv::Scalar( 0, 0, 255 ), 1, 8 );
+			IplImage ipltemp;
+			if (event == NewFrameEvent::COLOR)
+			{
+				ipltemp = outImage;
+			}
+			else if (event == NewFrameEvent::DEPTH)
+			{
+				cv::Mat normalizedImage;
+				double min, max;
+				cv::minMaxIdx(frame, &min, &max);
+				outImage.convertTo(normalizedImage, CV_8UC1, 255 / (max-min), -min*255 / (max-min)); 
+				ipltemp = normalizedImage;
+			}
+			IplImage* colorIplImage = cvCreateImage(cvSize(frame.cols, frame.rows), 8, frame.channels());
+			cvCopy(&ipltemp, colorIplImage);
+			Fl_RGB_Image* colorFlImage = new Fl_RGB_Image((unsigned char*)colorIplImage->imageData, frame.cols, frame.rows, frame.channels(), colorIplImage->widthStep);
+			Fl::lock();
+			colorBox->image(colorFlImage);
+			colorBox->redraw();
+			window->redraw();
+			Fl::wait();
+			Fl::unlock();
+			Fl::awake();
+			cvReleaseImage(&colorIplImage);
+			colorFlImage->uncache();
+			Fl::flush();
+		}
 	}
-	void normalize(cv::Mat image) {
-		//cv::Mat normalizedImage;
-		//cv::normalize(image, normalizedImage, 0, 255, CV_MINMAX, CV_8UC3); 
-		//show(normalizedImage, 1);
-	}
-	void show(cv::Mat image) {
-		//cvReleaseImage(&iplImage);
-		//iplImage = cvCreateImage(cvSize(image.cols, image.rows), 8, 3);
-		//IplImage ipltemp = image;
-		//cvCopy(&ipltemp, iplImage);
-		//FlImage->uncache();
-		//FlImage = new Fl_RGB_Image((unsigned char*)iplImage->imageData, width, height, channels, iplImage->widthStep);
-		//Fl::lock();
-		//box->image(FlImage);
-		//box->redraw();
-		//Fl::wait();
-		//Fl::unlock();
-		//Fl::awake();
-	    cv::imshow(wname, image);
-	    cv::waitKey(1); 
+	
+	void fire(const ElementEvent& event, int id)
+	{
+		ids[id] = ManifoldObserver<std::tuple<double, double, double>>::man_->getElement(id);
 	}
 };
-
-class ColorDebugStream : public AbstractCameraObserverDecorator, public DebugStream
-{
-public:
-	ColorDebugStream(AbstractCameraObserver *o) : AbstractCameraObserverDecorator(o), DebugStream("ColorStream") { }
-	void update() {
-		show(cam->getColorFrame());
-		AbstractCameraObserverDecorator::update();
-	}
-};*/
