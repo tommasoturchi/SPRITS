@@ -7,6 +7,9 @@
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Box.H>
 
+#include <boost/thread.hpp>
+#include <thread>
+
 using namespace SPRITS;
 
 struct FPSCounter
@@ -62,7 +65,7 @@ public:
 		}
 	}
 };
-
+	
 class DebugWindow : public CameraObserver<std::tuple<double, double, double>>, public ManifoldObserver<std::tuple<double, double, double>>
 {
 private:
@@ -76,7 +79,10 @@ public:
 		window->begin();
 		colorBox = new Fl_Box(0, 0, 640, 480);
 		window->end();
-		window->show();
+		Fl::visual(FL_RGB);
+	}
+	
+	~DebugWindow() {
 	}
 	
 	void fire(const NewFrameEvent& event, const cv::Mat& frame)
@@ -86,7 +92,7 @@ public:
 			cv::Mat outImage;
 			outImage = frame;
 			for (auto id : ids)
-				cv::circle(outImage, cv::Point((int)(std::get<0>(id.second)*640), (int)(std::get<1>(id.second)*480)), 8, cv::Scalar( 0, 0, 255 ), 1, 8 );
+				cv::circle(outImage, cv::Point((int)(std::get<0>(id.second)*640), (int)(std::get<1>(id.second)*480)), 8, cv::Scalar( 255, 0, 0 ), 1, 8 );
 			IplImage ipltemp;
 			if (event == NewFrameEvent::COLOR)
 			{
@@ -107,17 +113,27 @@ public:
 			colorBox->image(colorFlImage);
 			colorBox->redraw();
 			window->redraw();
+			window->show();
 			Fl::wait();
 			Fl::unlock();
 			Fl::awake();
 			cvReleaseImage(&colorIplImage);
 			colorFlImage->uncache();
 			Fl::flush();
+			Fl::wait();
 		}
 	}
 	
 	void fire(const ElementEvent& event, int id)
 	{
-		ids[id] = ManifoldObserver<std::tuple<double, double, double>>::man_->getElement(id);
+		switch (event.get_state()) {
+			case ADD:
+			case UPDATE:
+			ids[id] = ManifoldObserver<std::tuple<double, double, double>>::man_->getElement(id);
+			break;
+			case REMOVE:
+			ids.erase(id);
+			break;
+		}
 	}
 };

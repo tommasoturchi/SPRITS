@@ -27,9 +27,7 @@ public:
 		server_.set_close_handler(std::bind<void>([this](websocketpp::connection_hdl hdl){ std::lock_guard<std::mutex> lock(mutex_); connections_.erase(hdl); }, std::placeholders::_1));
         server_.listen(9002);
 		server_.start_accept();
-		thread_ = std::thread([this] {
-			server_.run();
-		});
+		thread_ = std::thread([this] { server_.run(); });
 		std::cout << "OK!" << std::endl;
 	}
 	

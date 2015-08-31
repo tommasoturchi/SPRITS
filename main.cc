@@ -7,13 +7,12 @@
 #include <publishers/WebSocket.cc>
 #include <publishers/TUIO.cc>
 
-#include <Carbon/Carbon.h>
-
 #include <functional>
 #include <map>
 #include <vector>
 #include <utility>
 #include <stdio.h>
+#include <signal.h>
 
 #include <Camera.hpp>
 #include <Manifold.hpp>
@@ -29,28 +28,24 @@ public:
 	DebugTracker(Camera *cam, Manifold<std::tuple<double, double, double>> *man, E event, Events... events) : Debug<std::tuple<double, double, double>>(cam, man, 10, event, events...) { }
 };
 
-Boolean isPressed( unsigned short inKeyCode )
-{
-	unsigned char keyMap[16];
-	GetKeys((BigEndianUInt32*) &keyMap);
-	return (0 != ((keyMap[ inKeyCode >> 3] >> (inKeyCode & 7)) & 1));
-}
-	
+static bool stop = false;
+
 int main(int argc, char **argv)
 {
 	try
 	{
+		signal(SIGINT, [](int nSig) { stop = true; });
 		Camera* cam = new OpenNI();
 		Manifold<std::tuple<double, double, double>>* manifold = new Plane();
-		ManifoldObserver<std::tuple<double, double, double>>* publisher = new WebSocket(manifold);
+		//ManifoldObserver<std::tuple<double, double, double>>* publisher = new WebSocket(manifold);
 		CameraObserver<std::tuple<double, double, double>>* guiobserver = new DebugWindow(cam, manifold);
-		CameraObserver<std::tuple<double, double, double>>* observer = new ChiliTracker(new DebugTracker(cam, manifold, NewFrameEvent::COLOR));
+		//CameraObserver<std::tuple<double, double, double>>* observer = new ChiliTracker(new DebugTracker(cam, manifold, NewFrameEvent::COLOR));
 		//CameraObserver<std::tuple<double, double, double>>* fingerobserver = new FingerTracker(observer);
-		while (!isPressed(0x35))
+		while (!stop)
 			cam->update();
-		delete observer;
+		//delete observer;
 		delete guiobserver;
-		delete publisher;
+		//delete publisher;
 		delete manifold;
 		delete cam;
 	} catch (std::exception& e)

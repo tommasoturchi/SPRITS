@@ -90,7 +90,7 @@ class OpenNI : public Camera
 public:
 	OpenNI() : OpenNI(4, 9) { };
 	
-	OpenNI(int dmode, int cmode)
+	OpenNI(int dmode, int cmode) : Camera(true)
 	{
 		std::cout << "Starting OpenNI... ";
 		openni::OpenNI::initialize();
@@ -113,7 +113,7 @@ public:
 		}
 
 		colorListener.cb = [&](cv::Mat3b color_) { notify(NewFrameEvent::COLOR, color_); color_.release(); };
-		depthListener.cb = [&](cv::Mat1s depth_){ notify(NewFrameEvent::DEPTH, depth_); depth_.release(); };
+		depthListener.cb = [&](cv::Mat1s depth_) { notify(NewFrameEvent::DEPTH, depth_); depth_.release(); };
 		colorStream.addNewFrameListener(&colorListener);
 		depthStream.addNewFrameListener(&depthListener);
 

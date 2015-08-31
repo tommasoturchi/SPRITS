@@ -6,6 +6,8 @@
 
 #include <chilitags/chilitags.hpp>
 
+#undef HAS_MULTITHREADING
+
 using namespace SPRITS;
 
 class ChiliTracker : public CameraObserverDecorator<std::tuple<double, double, double>>
