@@ -3,13 +3,6 @@
 
 #include <time.h>
 
-#include <FL/Fl.H>
-#include <FL/Fl_Window.H>
-#include <FL/Fl_Box.H>
-
-#include <boost/thread.hpp>
-#include <thread>
-
 using namespace SPRITS;
 
 struct FPSCounter
@@ -62,78 +55,6 @@ public:
 		{
 			std::cout << (event==NewFrameEvent::COLOR?"Color":"Depth") << " sensor running at " << counters_[event].getFPS() << " FPS." << std::endl;
 			start_[event] = end;
-		}
-	}
-};
-	
-class DebugWindow : public CameraObserver<std::tuple<double, double, double>>, public ManifoldObserver<std::tuple<double, double, double>>
-{
-private:
-	Fl_Window *window;
-	Fl_Box *colorBox;
-	std::map<int, std::tuple<double, double, double>> ids;
-public:
-	DebugWindow(Camera *cam, Manifold<std::tuple<double, double, double>> *man) : CameraObserver<std::tuple<double, double, double>>(cam, man, NewFrameEvent::COLOR), ManifoldObserver<std::tuple<double, double, double>>(man)
-	{
-		window = new Fl_Window(0, 0, 640, 480, "Debug");
-		window->begin();
-		colorBox = new Fl_Box(0, 0, 640, 480);
-		window->end();
-		Fl::visual(FL_RGB);
-	}
-	
-	~DebugWindow() {
-	}
-	
-	void fire(const NewFrameEvent& event, const cv::Mat& frame)
-	{
-		if (window)
-		{
-			cv::Mat outImage;
-			outImage = frame;
-			for (auto id : ids)
-				cv::circle(outImage, cv::Point((int)(std::get<0>(id.second)*640), (int)(std::get<1>(id.second)*480)), 8, cv::Scalar( 255, 0, 0 ), 1, 8 );
-			IplImage ipltemp;
-			if (event == NewFrameEvent::COLOR)
-			{
-				ipltemp = outImage;
-			}
-			else if (event == NewFrameEvent::DEPTH)
-			{
-				cv::Mat normalizedImage;
-				double min, max;
-				cv::minMaxIdx(frame, &min, &max);
-				outImage.convertTo(normalizedImage, CV_8UC1, 255 / (max-min), -min*255 / (max-min)); 
-				ipltemp = normalizedImage;
-			}
-			IplImage* colorIplImage = cvCreateImage(cvSize(frame.cols, frame.rows), 8, frame.channels());
-			cvCopy(&ipltemp, colorIplImage);
-			Fl_RGB_Image* colorFlImage = new Fl_RGB_Image((unsigned char*)colorIplImage->imageData, frame.cols, frame.rows, frame.channels(), colorIplImage->widthStep);
-			Fl::lock();
-			colorBox->image(colorFlImage);
-			colorBox->redraw();
-			window->redraw();
-			window->show();
-			Fl::wait();
-			Fl::unlock();
-			Fl::awake();
-			cvReleaseImage(&colorIplImage);
-			colorFlImage->uncache();
-			Fl::flush();
-			Fl::wait();
-		}
-	}
-	
-	void fire(const ElementEvent& event, int id)
-	{
-		switch (event.get_state()) {
-			case ADD:
-			case UPDATE:
-			ids[id] = ManifoldObserver<std::tuple<double, double, double>>::man_->getElement(id);
-			break;
-			case REMOVE:
-			ids.erase(id);
-			break;
 		}
 	}
 };

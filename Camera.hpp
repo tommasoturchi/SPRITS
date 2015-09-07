@@ -25,34 +25,54 @@ namespace SPRITS
 	class Camera
 	{
 	private:
-		Fl_Window *window;
-		Fl_Box *colorBox;
-		bool calibration;
-		int waiting;
+		Fl_Window* calibWin_;
+		Fl_Window* debugWin_;
+		Fl_Box* calibBox_;
+		Fl_Box* debugBox_;
+		Fl_Button* submitBut_;
+		Fl_Button* resetBut_;
+		bool calib_, debug_;
 		std::map<NewFrameEvent, boost::signals2::signal<void(const NewFrameEvent&, const cv::Mat&)>> signals_;
+		
 		class CalibrationBox : public Fl_Box
 		{
 		private:
-			bool calibrating;
-			std::tuple<int, int> origin, target;
+			bool select_;
+			std::tuple<int, int> origin_, target_;
+			Camera* cam_;
 		public:
-			CalibrationBox(int x, int y, int w, int h, const char* l = 0) : Fl_Box(x, y, w, h, l) { }
+			CalibrationBox(int x, int y, int w, int h, Camera* cam) : Fl_Box(x, y, w, h), cam_(cam) { }
 			
 			int handle(int e)
 			{
-				auto coords = std::make_tuple<int, int>(Fl::event_x(), Fl::event_y());
+				auto coords = std::tuple<int, int>{Fl::event_x(), Fl::event_y()};
 				switch (e)
 				{
 					case FL_PUSH:
-					origin = coords;
+					origin_ = coords;
 					return 1;
 					case FL_DRAG:
-					target = coords;
-					calibrating = true;
+					target_ = coords;
+					select_ = true;
 					return 1;
 					case FL_RELEASE:
-					std::cout << "(" << std::get<0>(coords) << "," << std::get<1>(coords) << ") RELEASE!" << std::endl;
-					calibrating = false;
+					if (select_)
+					{
+						if (std::get<0>(origin_) < std::get<0>(target_))
+						{
+							if (std::get<1>(origin_) < std::get<1>(target_))
+								cam_->setCalibration(origin_, target_);
+							else
+								cam_->setCalibration(std::tuple<int, int>{std::get<0>(origin_), std::get<1>(target_)}, std::tuple<int, int>{std::get<0>(target_), std::get<1>(origin_)});
+						} else
+						{
+							if (std::get<1>(origin_) < std::get<1>(target_))
+								cam_->setCalibration(std::tuple<int, int>{std::get<0>(target_), std::get<1>(origin_)}, std::tuple<int, int>{std::get<0>(origin_), std::get<1>(target_)});
+							else
+								cam_->setCalibration(target_, origin_);
+						}
+						select_ = false;
+					}
 					default:
 					return Fl_Box::handle(e);
 				}
@@ -61,41 +81,66 @@ namespace SPRITS
 			void draw()
 			{
 				Fl_Box::draw();
-				if (calibrating)
+				if (select_)
 				{
 					fl_line_style(FL_SOLID, 2);
-					int width = std::abs(std::get<0>(origin) - std::get<0>(target));
-					int height = std::abs(std::get<1>(origin) - std::get<1>(target));
-					if (std::get<0>(origin) < std::get<0>(target))
+					int width = std::abs(std::get<0>(origin_) - std::get<0>(target_));
+					int height = std::abs(std::get<1>(origin_) - std::get<1>(target_));
+					if (std::get<0>(origin_) < std::get<0>(target_))
 					{
-						if (std::get<1>(origin) < std::get<1>(target))
-							fl_rect(std::get<0>(origin), std::get<1>(origin), width, height, FL_RED);
+						if (std::get<1>(origin_) < std::get<1>(target_))
+							fl_rect(std::get<0>(origin_), std::get<1>(origin_), width, height, FL_RED);
 						else
-							fl_rect(std::get<0>(origin), std::get<1>(target), width, height, FL_RED);
+							fl_rect(std::get<0>(origin_), std::get<1>(target_), width, height, FL_RED);
 					} else
 					{
-						if (std::get<1>(origin) < std::get<1>(target))
-							fl_rect(std::get<0>(target), std::get<1>(origin), width, height, FL_RED);
+						if (std::get<1>(origin_) < std::get<1>(target_))
+							fl_rect(std::get<0>(target_), std::get<1>(origin_), width, height, FL_RED);
 						else
-							fl_rect(std::get<0>(target), std::get<1>(target), width, height, FL_RED);
+							fl_rect(std::get<0>(target_), std::get<1>(target_), width, height, FL_RED);
 					}
 				}
 			}
 		};
-	public:
-		Camera(bool calibrate = true) : calibration(calibrate)
+
+		static void resetCallback(Fl_Widget* o, void* cam)
 		{
-			if (calibrate)
+			((Camera*)cam)->resetCalibration();
+		}
+		
+		static void submitCallback(Fl_Widget* o, void* cam)
+		{
+			((Camera*)cam)->calibWin_->hide();
+			delete ((Camera*)cam)->calibWin_;
+			((Camera*)cam)->calib_ = false;
+		}
+	protected:
+		virtual void setCalibration(std::tuple<int, int> origin, std::tuple<int, int> target) = 0;
+		
+		virtual void resetCalibration() = 0;
+	public:
+		Camera(bool calibrate = true, bool debug = false) : calib_(calibrate), debug_(debug)
+		{
+			if (calib_)
 			{
-				window = new Fl_Window(0, 0, 640, 520, "Calibration");
-				window->begin();
-				colorBox = new CalibrationBox(0, 0, 640, 480);
-				Fl_Button* submit = new Fl_Button(10, 485, 300, 30, "OK");
-				Fl_Button* reset = new Fl_Button(330, 485, 300, 30, "Reset");
-				window->end();
-				Fl::visual(FL_RGB);
-				window->show();
+				calibWin_ = new Fl_Window(0, 0, 0, 0, "Calibration");
+				calibWin_->begin();
+				calibBox_ = new CalibrationBox(0, 0, 0, 0, this);
+				submitBut_ = new Fl_Button(0, 0, 0, 0, "OK");
+				submitBut_->callback(submitCallback, (void*)&*this);
+				calibWin_->callback(submitCallback, (void*)&*this);
+				resetBut_ = new Fl_Button(0, 0, 0, 0, "Reset");
+				resetBut_->callback(resetCallback, (void*)&*this);
+				calibWin_->end();
 			}
+			if (debug_)
+			{
+				debugWin_ = new Fl_Window(0, 0, 0, 0, "Debug");
+				debugWin_->begin();
+				debugBox_ = new Fl_Box(0, 0, 0, 0);
+				debugWin_->end();
+			}
+			Fl::visual(FL_RGB);
 		}
 		
 		template <typename Observer>
@@ -106,39 +151,57 @@ namespace SPRITS
 		
 		void notify(const NewFrameEvent& event, const cv::Mat& frame)
 		{
-			if ((event == NewFrameEvent::COLOR) && (calibration))
+			if (event == NewFrameEvent::COLOR)
 			{
-				cv::Mat outImage;
-				outImage = frame;
-				IplImage ipltemp = outImage;
-				IplImage* colorIplImage = cvCreateImage(cvSize(frame.cols, frame.rows), 8, frame.channels());
-				cvCopy(&ipltemp, colorIplImage);
-				Fl_RGB_Image* colorFlImage = new Fl_RGB_Image((unsigned char*)colorIplImage->imageData, frame.cols, frame.rows, frame.channels(), colorIplImage->widthStep);
-				Fl::lock();
-				colorBox->image(colorFlImage);
-				window->redraw();
-				Fl::unlock();
-				cvReleaseImage(&colorIplImage);
-				colorFlImage->uncache();
-				Fl::awake();
-			} else if (!calibration)
+				if (calib_)
+				{
+					if ((frame.cols != calibBox_->w()) || (frame.rows != calibBox_->h()))
+					{
+						calibBox_->resize(0, 0, frame.cols, frame.rows);
+						submitBut_->resize(10, frame.rows + 5, std::floor(frame.cols/2) - 20 , 30);
+						resetBut_->resize(std::floor(frame.cols/2) + 10, frame.rows + 5, std::floor(frame.cols/2) - 20, 30);
+						calibWin_->resize(0, 0, frame.cols, frame.rows + 40);
+					}
+					Fl_RGB_Image* colorFlImage = new Fl_RGB_Image((unsigned char*)frame.data, frame.cols, frame.rows, frame.channels());
+					calibBox_->image(colorFlImage);
+					calibWin_->redraw();
+				} else if (debug_)
+				{
+					if ((frame.cols != debugBox_->w()) || (frame.rows != debugBox_->h()))
+					{
+						debugBox_->resize(0, 0, frame.cols, frame.rows);
+						debugWin_->resize(0, 0, frame.cols, frame.rows);
+					}
+					Fl_RGB_Image* colorFlImage = new Fl_RGB_Image((unsigned char*)frame.data, frame.cols, frame.rows, frame.channels());
+					debugBox_->image(colorFlImage);
+					debugWin_->redraw();
+				}
+			}
+			if (!calib_)
 				signals_[event](event, frame);
 		}
 		
 		virtual ~Camera()
 		{
-			if (calibration)
+			if (calib_)
 			{
-				window->hide();
-				Fl::delete_widget(colorBox);
-				delete window;
+				calibWin_->hide();
+				delete calibWin_;
+			}
+			if (debug_)
+			{
+				debugWin_->hide();
+				delete debugWin_;
 			}
 			for (auto&& sig : signals_ | boost::adaptors::map_values) sig.disconnect_all_slots();
 		}
 		
 		virtual void update() {
-			//if (calibration && (waiting > 0))
-				waiting = Fl::wait();
+			if (calib_ && !calibWin_->shown())
+				calibWin_->show();
+			if (!calib_ && debug_ && !debugWin_->shown())
+				debugWin_->show();
+			Fl::wait();
 		}
 	};
 	

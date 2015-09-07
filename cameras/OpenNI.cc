@@ -87,10 +87,23 @@ class OpenNI : public Camera
 		openni::OpenNI::shutdown();
 		return modes;
 	}
+protected:
+	void setCalibration(std::tuple<int, int> origin, std::tuple<int, int> target)
+	{
+		if (((std::get<0>(target) - std::get<0>(origin)) > 100) && ((std::get<1>(target) - std::get<1>(origin)) > 100))
+		{
+			if (colorStream.setCropping(std::floor(std::get<0>(origin) / 10) * 10, std::floor(std::get<1>(origin) / 10) * 10, std::floor((std::get<0>(target) - std::get<0>(origin)) / 10) * 10, std::floor((std::get<1>(target) - std::get<1>(origin)) / 10) * 10) != openni::STATUS_OK)
+				printf("Couldn't crop:\n%s\n", openni::OpenNI::getExtendedError());
+		}
+	}
+	void resetCalibration()
+	{
+		colorStream.resetCropping();
+	}
 public:
-	OpenNI() : OpenNI(4, 9) { };
+	OpenNI(bool calibrate = false, bool debug = false) : OpenNI(4, 9, calibrate, debug) { };
 	
-	OpenNI(int dmode, int cmode) : Camera(true)
+	OpenNI(int dmode, int cmode, bool calibrate = false, bool debug = false) : Camera(calibrate, debug)
 	{
 		std::cout << "Starting OpenNI... ";
 		openni::OpenNI::initialize();

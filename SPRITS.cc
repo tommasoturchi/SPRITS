@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include <signal.h>
 
+#include <docopt.h>
+
 #include <Camera.hpp>
 #include <Manifold.hpp>
 
@@ -30,23 +32,32 @@ public:
 
 static bool stop = false;
 
+static const char USAGE[] =
+R"(Simple Pluggable Range Imaging Tracking Server
+
+    Usage:
+      SPRITS [(-c | --calibrate)] [(-d | --debug)]
+      SPRITS (-h | --help)
+      SPRITS --version
+
+    Options:
+      -h --help         Show this screen.
+      --version         Show version.
+      -c --calibrate    Enable calibration.
+      -d --debug        Enable debug.
+)";
+
 int main(int argc, char **argv)
 {
 	try
 	{
+		std::map<std::string, docopt::value> args = docopt::docopt(USAGE, { argv + 1, argv + argc }, true, "SPRITS 1.0");
 		signal(SIGINT, [](int nSig) { stop = true; });
-		Camera* cam = new OpenNI();
-		Manifold<std::tuple<double, double, double>>* manifold = new Plane();
-		//ManifoldObserver<std::tuple<double, double, double>>* publisher = new WebSocket(manifold);
-		CameraObserver<std::tuple<double, double, double>>* guiobserver = new DebugWindow(cam, manifold);
-		//CameraObserver<std::tuple<double, double, double>>* observer = new ChiliTracker(new DebugTracker(cam, manifold, NewFrameEvent::COLOR));
-		//CameraObserver<std::tuple<double, double, double>>* fingerobserver = new FingerTracker(observer);
+		Camera* cam = new OpenNI((bool)args["--calibrate"], (bool)args["--debug"]);
+		CameraObserver<std::tuple<double, double, double>>* observer = new DebugTracker(cam, new Plane(), NewFrameEvent::COLOR);
 		while (!stop)
 			cam->update();
-		//delete observer;
-		delete guiobserver;
-		//delete publisher;
-		delete manifold;
+		delete observer;
 		delete cam;
 	} catch (std::exception& e)
 	{

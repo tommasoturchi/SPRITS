@@ -11,8 +11,17 @@ class VideoStream : public Camera
 {
 	cv::VideoCapture *capture;
 	cv::Mat3b inputImage;
+protected:
+	void setCalibration(std::tuple<int, int> origin, std::tuple<int, int> target)
+	{
+		std::cout << "Received calibration data." << std::endl;
+	}
+	void resetCalibration()
+	{
+		std::cout << "Reset calibration data." << std::endl;
+	}
 public:
-	VideoStream()
+	VideoStream() : Camera(true)
 	{
 		std::cout << "Starting VideoCapture... ";
 		capture = new cv::VideoCapture(0);
@@ -34,6 +43,7 @@ public:
 	{
 		if (capture->read(inputImage))
 			notify(NewFrameEvent::COLOR, inputImage);
+		Camera::update();
 	}
 };
 
