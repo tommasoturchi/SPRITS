@@ -21,30 +21,22 @@
 
 using namespace SPRITS;
 
-class DebugTracker : public Debug<std::tuple<double, double, double>>
-{
-public:
-	DebugTracker(Camera *cam, Manifold<std::tuple<double, double, double>> *man, const NewFrameEvent& event) : Debug<std::tuple<double, double, double>>(cam, man, 10, event) { }
-	
-	template<typename E, typename... Events>
-	DebugTracker(Camera *cam, Manifold<std::tuple<double, double, double>> *man, E event, Events... events) : Debug<std::tuple<double, double, double>>(cam, man, 10, event, events...) { }
-};
-
 static bool stop = false;
 
 static const char USAGE[] =
 R"(Simple Pluggable Range Imaging Tracking Server
 
     Usage:
-      SPRITS [(-c | --calibrate)] [(-d | --debug)]
+      SPRITS [(-c | --calibrate)] [(-dw | --debugwindow)] (-dm=s | --debugmessage=s)
       SPRITS (-h | --help)
       SPRITS --version
 
     Options:
-      -h --help         Show this screen.
-      --version         Show version.
-      -c --calibrate    Enable calibration.
-      -d --debug        Enable debug.
+      -h --help             Show this screen.
+      --version             Show version.
+      -c --calibrate        Enable calibration.
+      -dw --debugwindow     Enable debug window.
+      -dm --debugmessage=s  Print debug message every s seconds [default: 10].
 )";
 
 int main(int argc, char **argv)
@@ -53,8 +45,8 @@ int main(int argc, char **argv)
 	{
 		std::map<std::string, docopt::value> args = docopt::docopt(USAGE, { argv + 1, argv + argc }, true, "SPRITS 1.0");
 		signal(SIGINT, [](int nSig) { stop = true; });
-		Camera* cam = new OpenNI((bool)args["--calibrate"], (bool)args["--debug"]);
-		CameraObserver<std::tuple<double, double, double>>* observer = new DebugTracker(cam, new Plane(), NewFrameEvent::COLOR);
+		Camera* cam = new OpenNI(args["--calibrate"].asBool(), args["--debug"].asBool());
+		CameraObserver<std::tuple<double, double, double>>* observer = new Debug3DTracker(cam, new Plane(), args["--debugmessage"].asLong(), NewFrameEvent::COLOR);
 		while (!stop)
 			cam->update();
 		delete observer;

@@ -2,6 +2,7 @@
 #include <Manifold.hpp>
 
 #include <time.h>
+#include <sys/time.h>
 
 using namespace SPRITS;
 
@@ -57,4 +58,13 @@ public:
 			start_[event] = end;
 		}
 	}
+};
+
+class Debug3DTracker : public Debug<std::tuple<double, double, double>>
+{
+public:
+	Debug3DTracker(Camera *cam, Manifold<std::tuple<double, double, double>> *man, int secs, const NewFrameEvent& event) : Debug<std::tuple<double, double, double>>(cam, man, secs, event) { }
+	
+	template<typename E, typename... Events>
+	Debug3DTracker(Camera *cam, Manifold<std::tuple<double, double, double>> *man, int secs, E event, Events... events) : Debug<std::tuple<double, double, double>>(cam, man, secs, event, events...) { }
 };
