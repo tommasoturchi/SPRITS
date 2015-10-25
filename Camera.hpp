@@ -111,7 +111,6 @@ namespace SPRITS
 		static void submitCallback(Fl_Widget* o, void* cam)
 		{
 			((Camera*)cam)->calibWin_->hide();
-			delete ((Camera*)cam)->calibWin_;
 			((Camera*)cam)->calib_ = false;
 		}
 	protected:
@@ -162,7 +161,10 @@ namespace SPRITS
 						resetBut_->resize(std::floor(frame.cols/2) + 10, frame.rows + 5, std::floor(frame.cols/2) - 20, 30);
 						calibWin_->resize(0, 0, frame.cols, frame.rows + 40);
 					}
-					Fl_RGB_Image* colorFlImage = new Fl_RGB_Image((unsigned char*)frame.data, frame.cols, frame.rows, frame.channels());
+					IplImage* iplImage = cvCreateImage(cvSize(frame.cols, frame.rows), 8, 3);
+					IplImage ipltemp = frame;
+					cvCopy(&ipltemp, iplImage);
+					Fl_RGB_Image* colorFlImage = new Fl_RGB_Image((unsigned char*)iplImage->imageData, frame.cols, frame.rows, frame.channels(), iplImage->widthStep);
 					calibBox_->image(colorFlImage);
 					calibWin_->redraw();
 				} else if (debug_)
@@ -172,7 +174,10 @@ namespace SPRITS
 						debugBox_->resize(0, 0, frame.cols, frame.rows);
 						debugWin_->resize(0, 0, frame.cols, frame.rows);
 					}
-					Fl_RGB_Image* colorFlImage = new Fl_RGB_Image((unsigned char*)frame.data, frame.cols, frame.rows, frame.channels());
+					IplImage* iplImage = cvCreateImage(cvSize(frame.cols, frame.rows), 8, 3);
+					IplImage ipltemp = frame;
+					cvCopy(&ipltemp, iplImage);
+					Fl_RGB_Image* colorFlImage = new Fl_RGB_Image((unsigned char*)iplImage->imageData, frame.cols, frame.rows, frame.channels(), iplImage->widthStep);
 					debugBox_->image(colorFlImage);
 					debugWin_->redraw();
 				}
@@ -243,6 +248,11 @@ namespace SPRITS
 		CameraObserverDecorator(CameraObserver<T> *component, const NewFrameEvent& event) : CameraObserver<T>(component->cam_, component->man_), component_(component)
 		{
 			this->con_[event] = this->cam_->subscribe(event, boost::bind(&CameraObserver<T>::fire, this, _1, _2), boost::signals2::at_front);
+		}
+		
+		virtual ~CameraObserverDecorator()
+		{
+			delete component_;
 		}
 		
 		template<typename E, typename... Events>

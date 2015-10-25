@@ -10,7 +10,7 @@
 
 using namespace SPRITS;
 
-class WebSocket : public ManifoldObserver<std::tuple<double, double, double>>
+class WebSocketPublisher : public ManifoldObserver<std::tuple<double, double, double>>
 {
 private:
 	std::thread thread_;
@@ -18,7 +18,7 @@ private:
     std::set<websocketpp::connection_hdl,std::owner_less<websocketpp::connection_hdl>> connections_;
     std::mutex mutex_;
 public:
-	WebSocket(Manifold<std::tuple<double, double, double>>* man) : ManifoldObserver<std::tuple<double, double, double>>(man) {
+	WebSocketPublisher(Manifold<std::tuple<double, double, double>>* man) : ManifoldObserver<std::tuple<double, double, double>>(man) {
 		std::cout << "Starting WebSocket Server... ";
 		server_.clear_access_channels(websocketpp::log::alevel::all);
 		server_.init_asio();
@@ -31,7 +31,7 @@ public:
 		std::cout << "OK!" << std::endl;
 	}
 	
-	~WebSocket()
+	~WebSocketPublisher()
 	{
 		std::cout << "Stopping WebSocket Server... ";
 		server_.stop();
