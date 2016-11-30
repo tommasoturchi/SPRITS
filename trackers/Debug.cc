@@ -1,10 +1,13 @@
 #include <Camera.hpp>
-#include <Manifold.hpp>
+#include <Space.hpp>
 
 #include <time.h>
 #include <sys/time.h>
+#include <spdlog/spdlog.h>
 
 using namespace SPRITS;
+
+#define TIMEOUT 10
 
 struct FPSCounter
 {
@@ -28,33 +31,30 @@ template<typename T> class Debug : public CameraObserver<T>
 private:
 	std::map<NewFrameEvent, FPSCounter> counters_;
 	std::map<NewFrameEvent, clock_t> start_;
-	int seconds_;
 public:
-	Debug(Camera *cam, Manifold<T> *man, int seconds, const NewFrameEvent& event) : CameraObserver<T>(cam, man, event)
+	Debug(Camera *cam, Space<T> *spc, const NewFrameEvent& event) : CameraObserver<T>(cam, spc, event)
 	{
-		seconds_ = seconds;
 		counters_[event] = FPSCounter();
-		start_[event] = clock();
 	}
 	
 	template<typename E, typename... Events>
-	Debug(Camera *cam, Manifold<T> *man, int seconds, E event, Events... events) : CameraObserver<T>(cam, man, event, events...)
+	Debug(Camera *cam, Space<T> *spc, E event, Events... events) : CameraObserver<T>(cam, spc, event, events...)
 	{
-		seconds_ = seconds;
 		for (auto event : { event, [](const NewFrameEvent& event) { return event; }(std::forward<Events>(events)...) })
 		{
 			counters_[event] = FPSCounter();
-			start_[event] = clock();
 		}
 	}
 	
 	void fire(const NewFrameEvent& event, const cv::Mat& frame)
 	{
+		if (start_.find(event) == start_.end())
+			start_[event] = clock();
 		counters_[event].tick();
 		clock_t end = clock();
-		if ((end - start_[event])/(double)CLOCKS_PER_SEC > seconds_)
+		if ((end - start_[event])/(double)CLOCKS_PER_SEC > TIMEOUT)
 		{
-			std::cout << (event==NewFrameEvent::COLOR?"Color":"Depth") << " sensor running at " << counters_[event].getFPS() << " FPS." << std::endl;
+			spdlog::get("console")->info("{} sensor recording at {} FPS.", (event==NewFrameEvent::COLOR?"Color":"Depth"), counters_[event].getFPS());
 			start_[event] = end;
 		}
 	}
@@ -63,8 +63,8 @@ public:
 class Debug3DTracker : public Debug<std::tuple<double, double, double>>
 {
 public:
-	Debug3DTracker(Camera *cam, Manifold<std::tuple<double, double, double>> *man, int secs, const NewFrameEvent& event) : Debug<std::tuple<double, double, double>>(cam, man, secs, event) { }
+	Debug3DTracker(Camera *cam, Space<std::tuple<double, double, double>> *spc, const NewFrameEvent& event) : Debug<std::tuple<double, double, double>>(cam, spc, event) { }
 	
 	template<typename E, typename... Events>
-	Debug3DTracker(Camera *cam, Manifold<std::tuple<double, double, double>> *man, int secs, E event, Events... events) : Debug<std::tuple<double, double, double>>(cam, man, secs, event, events...) { }
+	Debug3DTracker(Camera *cam, Space<std::tuple<double, double, double>> *spc, E event, Events... events) : Debug<std::tuple<double, double, double>>(cam, spc, event, events...) { }
 };

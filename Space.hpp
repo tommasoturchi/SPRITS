@@ -1,5 +1,5 @@
-#ifndef MANIFOLD_HPP
-#define MANIFOLD_HPP
+#ifndef SPACE_HPP
+#define SPACE_HPP
 
 #include <functional>
 #include <map>
@@ -25,7 +25,7 @@ namespace SPRITS
 	  ElementEvent_type type_;
 	};
 	  
-	template<typename T> class Manifold
+	template<typename T> class Space
 	{
 	private:
 		boost::signals2::signal<void(const ElementEvent&, int)> signal_;
@@ -47,21 +47,21 @@ namespace SPRITS
 			signal_(event, id);
 		}
 		
-		virtual ~Manifold()
+		virtual ~Space()
 		{
 			signal_.disconnect_all_slots();
 		}
 	};
 	
-	template<typename T> class ManifoldObserver
+	template<typename T> class SpaceObserver
 	{
 	protected:
-		Manifold<T>* man_;
+		Space<T>* spc_;
 		boost::signals2::connection con_;
 	public:
-		ManifoldObserver(Manifold<T>* man) : man_(man), con_(man->subscribe(boost::bind(&ManifoldObserver::fire, this, _1, _2))) { }
+		SpaceObserver(Space<T>* spc) : spc_(spc), con_(spc->subscribe(boost::bind(&SpaceObserver::fire, this, _1, _2))) { }
 		
-		virtual ~ManifoldObserver()
+		virtual ~SpaceObserver()
 		{
 			con_.disconnect();
 		}

@@ -1,7 +1,8 @@
 #include <Camera.hpp>
-#include <Manifold.hpp>
+#include <Space.hpp>
 
 #include <feature_extractor.h>
+#include <spdlog/spdlog.h>
 
 using namespace SPRITS;
 
@@ -47,7 +48,7 @@ public:
 			depth_mid = (uint8_t*)frame.data;
 			feature_extractor->Process(depth_mid, pixelDist, minDist);
 			
-			std::cout << feature_extractor->GetNumFingerTips() << " total fingers detected." << std::endl;
+			spdlog::get("console")->debug("{} total fingers detected.", feature_extractor->GetNumFingerTips());
 		}
 	}
 };

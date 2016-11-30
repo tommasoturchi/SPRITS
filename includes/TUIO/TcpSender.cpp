@@ -64,7 +64,7 @@ static DWORD WINAPI ServerThreadFunc( LPVOID obj )
 	struct sockaddr_in client_addr;
 	socklen_t len = sizeof(client_addr);
 	
-	std::cout << "TUIO/TCP socket created on port " << sender->port_no << std::endl;
+	//std::cout << "TUIO/TCP socket created on port " << sender->port_no << std::endl;
 	while (sender->tcp_socket) {
 #ifdef WIN32
 		SOCKET tcp_client = -1;

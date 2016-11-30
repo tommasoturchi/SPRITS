@@ -158,7 +158,7 @@ TcpReceiver::TcpReceiver(int port)
 		return;
 	}
 
-	std::cout << "TUIO/TCP socket created on port " << port << std::endl;
+	//std::cout << "TUIO/TCP socket created on port " << port << std::endl;
 }
 
 TcpReceiver::TcpReceiver(const char *host, int port)

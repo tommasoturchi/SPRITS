@@ -8,16 +8,17 @@
 #include <stdio.h>
 #include <signal.h>
 #include <boost/lexical_cast.hpp>
+#include <spdlog/spdlog.h>
 
 #include <Camera.hpp>
-#include <Manifold.hpp>
+#include <Space.hpp>
 
 #include <cameras/OpenNI.cc>
 #include <cameras/VideoStream.cc>
 #include <trackers/Debug.cc>
 #include <trackers/ChiliTracker.cc>
 #include <trackers/FingerTracker.cc>
-#include <manifolds/Plane.cc>
+#include <spaces/Plane.cc>
 #include <publishers/WebSocket.cc>
 #include <publishers/TUIO.cc>
 
@@ -26,45 +27,48 @@ using namespace SPRITS;
 static bool stop = false;
 
 static const char USAGE[] =
-R"(Simple Pluggable Range Imaging Tracking Server
+R"(Simple Pluggable Range Imaging Tracking Server.
 
     Usage:
       SPRITS [options]
 
     Options:
-      -h --help          Show this screen.
-      -c --calibrate     Enable calibration.
-      -d --debug         Enable debug window.
-      -f S --fps=S       Print FPS message every S seconds [default: 10].
-      -t --tuio          Enable TUIO output.
-      -w --websocket     Enable Websocket output.
-      -v --version       Show version.
+      --help       Show this screen.
+      --crop       Crop camera image.
+      --debug      Enable debug window.
+      --tuio       Add the TUIO publisher.
+      --verbose    Enable verbose logging.
+      --websocket  Add the Websocket publisher.
+      --version    Show version.
 )";
 
 int main(int argc, char **argv)
 {
+	auto console = spdlog::stdout_logger_mt("console", true);
 	try
 	{
-		std::map<std::string, docopt::value> args = docopt::docopt(USAGE, { argv + 1, argv + argc }, true, "SPRITS 1.0");
+		std::map<std::string, docopt::value> args = docopt::docopt(USAGE, { argv + 1, argv + argc }, true, "SPRITS 1.1");
+		console->set_level(args["--verbose"].asBool()?spdlog::level::debug:spdlog::level::info);
 		signal(SIGINT, [](int nSig) { stop = true; });
-		//Camera* cam = new OpenNI(args["--calibrate"].asBool(), args["--debug"].asBool());
-		Camera* cam = new VideoStream();
-		Manifold<std::tuple<double, double, double>>* man = new Plane();
-		CameraObserver<std::tuple<double, double, double>>* fpsobs = new ChiliTracker(new Debug3DTracker(cam, man, boost::lexical_cast<int>(args["--fps"].asString()), NewFrameEvent::COLOR, NewFrameEvent::DEPTH));
-		std::list<ManifoldObserver<std::tuple<double, double, double>>*> publishers;
+		Camera* cam = new OpenNI(args["--crop"].asBool(), args["--debug"].asBool());
+		Space<std::tuple<double, double, double>>* spc = new Plane();
+		CameraObserver<std::tuple<double, double, double>>* fpsobs = new ChiliTracker(new Debug3DTracker(cam, spc, NewFrameEvent::COLOR, NewFrameEvent::DEPTH));
+		std::list<SpaceObserver<std::tuple<double, double, double>>*> publishers;
 		if (args["--tuio"].asBool())
-			publishers.push_back(new TUIOPublisher(man));
+			publishers.push_back(new TUIOPublisher(spc));
 		if (args["--websocket"].asBool())
-			publishers.push_back(new WebSocketPublisher(man));
+			publishers.push_back(new WebSocketPublisher(spc));
 		while (!stop)
 			cam->update();
+		cv::destroyAllWindows();
 		for (auto const& pub : publishers)
 			delete pub;
 		delete fpsobs;
 		delete cam;
 	} catch (std::exception& e)
 	{
-		std::cout << "ERROR: " << e.what() << std::endl;
+		spdlog::get("console")->critical("ERROR: {}", e.what());
 	}
+	spdlog::drop_all();
 	exit(0);
 }

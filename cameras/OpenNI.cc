@@ -4,6 +4,7 @@
 #include <Camera.hpp>
 
 #include <OpenNI.h>
+#include <spdlog/spdlog.h>
 
 using namespace SPRITS;
 
@@ -88,24 +89,24 @@ class OpenNI : public Camera
 		return modes;
 	}
 protected:
-	void setCalibration(std::tuple<int, int> origin, std::tuple<int, int> target)
+	void setCropping(boost::tuple<int, int> origin, boost::tuple<int, int> target)
 	{
-		if (((std::get<0>(target) - std::get<0>(origin)) > 100) && ((std::get<1>(target) - std::get<1>(origin)) > 100))
+		if (((boost::get<0>(target) - boost::get<0>(origin)) > 100) && ((boost::get<1>(target) - boost::get<1>(origin)) > 100))
 		{
-			if (colorStream.setCropping(std::floor(std::get<0>(origin) / 10) * 10, std::floor(std::get<1>(origin) / 10) * 10, std::floor((std::get<0>(target) - std::get<0>(origin)) / 10) * 10, std::floor((std::get<1>(target) - std::get<1>(origin)) / 10) * 10) != openni::STATUS_OK)
+			if (colorStream.setCropping(std::floor(boost::get<0>(origin) / 10) * 10, std::floor(boost::get<1>(origin) / 10) * 10, std::floor((boost::get<0>(target) - boost::get<0>(origin)) / 10) * 10, std::floor((boost::get<1>(target) - boost::get<1>(origin)) / 10) * 10) != openni::STATUS_OK)
 				printf("Couldn't crop:\n%s\n", openni::OpenNI::getExtendedError());
 		}
 	}
-	void resetCalibration()
+	void resetCropping()
 	{
 		colorStream.resetCropping();
 	}
 public:
-	OpenNI(bool calibrate = false, bool debug = false) : OpenNI(4, 9, calibrate, debug) { };
+	OpenNI(bool crop = false, bool debug = false) : OpenNI(4, 9, crop, debug) { };
 	
-	OpenNI(int dmode, int cmode, bool calibrate = false, bool debug = false) : Camera(calibrate, debug)
+	OpenNI(int dmode, int cmode, bool crop = false, bool debug = false) : Camera(crop, debug)
 	{
-		std::cout << "Starting OpenNI... ";
+		spdlog::get("console")->info("Opening OpenNI device...");
 		openni::OpenNI::initialize();
 		if (device.open(openni::ANY_DEVICE) != openni::STATUS_OK)
 		{
@@ -125,7 +126,13 @@ public:
 			throw std::runtime_error("Couldn't find any depth stream!");
 		}
 
-		colorListener.cb = [&](cv::Mat3b color_) { notify(NewFrameEvent::COLOR, color_); color_.release(); };
+		if (cmode >= device.getSensorInfo(openni::SENSOR_COLOR)->getSupportedVideoModes().getSize())
+			throw std::runtime_error("Unsupported color video mode!");
+		if (dmode >= device.getSensorInfo(openni::SENSOR_DEPTH)->getSupportedVideoModes().getSize())
+			throw std::runtime_error("Unsupported depth video mode!");
+
+
+		colorListener.cb = [&](cv::Mat3b color_) { cv::cvtColor(color_, color_, CV_BGR2RGB); notify(NewFrameEvent::COLOR, color_); color_.release(); };
 		depthListener.cb = [&](cv::Mat1s depth_) { notify(NewFrameEvent::DEPTH, depth_); depth_.release(); };
 		colorStream.addNewFrameListener(&colorListener);
 		depthStream.addNewFrameListener(&depthListener);
@@ -136,12 +143,12 @@ public:
 		depthStream.setVideoMode(device.getSensorInfo(openni::SENSOR_DEPTH)->getSupportedVideoModes()[dmode]);
 		depthStream.start();
 		
-		std::cout << "OK!" << std::endl;
+		spdlog::get("console")->info("OpenNI device opened successfully!");
 	}
 	
 	~OpenNI()
 	{
-		std::cout << "Stopping OpenNI... ";
+		spdlog::get("console")->info("Closing OpenNI device...");
 		
 		colorStream.removeNewFrameListener(&colorListener);
 		colorStream.stop();
@@ -153,7 +160,7 @@ public:
 		
 		device.close();
 		openni::OpenNI::shutdown();
-		std::cout << "OK!" << std::endl;
+		spdlog::get("console")->info("OpenNI device closed successfully!");
 	}
 	
 	static std::vector<smode*> getSupportedColorModes()

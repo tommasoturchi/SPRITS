@@ -3,14 +3,15 @@
 
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
+#include <spdlog/spdlog.h>
 
 #include <json/json.h>
 
-#include <Manifold.hpp>
+#include <Space.hpp>
 
 using namespace SPRITS;
 
-class WebSocketPublisher : public ManifoldObserver<std::tuple<double, double, double>>
+class WebSocketPublisher : public SpaceObserver<std::tuple<double, double, double>>
 {
 private:
 	std::thread thread_;
@@ -18,8 +19,8 @@ private:
     std::set<websocketpp::connection_hdl,std::owner_less<websocketpp::connection_hdl>> connections_;
     std::mutex mutex_;
 public:
-	WebSocketPublisher(Manifold<std::tuple<double, double, double>>* man) : ManifoldObserver<std::tuple<double, double, double>>(man) {
-		std::cout << "Starting WebSocket Server... ";
+	WebSocketPublisher(Space<std::tuple<double, double, double>>* spc) : SpaceObserver<std::tuple<double, double, double>>(spc) {
+		spdlog::get("console")->info("Starting WebSocket Server...");
 		server_.clear_access_channels(websocketpp::log::alevel::all);
 		server_.init_asio();
 		server_.set_reuse_addr(true);
@@ -28,15 +29,15 @@ public:
         server_.listen(9002);
 		server_.start_accept();
 		thread_ = std::thread([this] { server_.run(); });
-		std::cout << "OK!" << std::endl;
+		spdlog::get("console")->info("WebSocket Server started successfully!");
 	}
 	
 	~WebSocketPublisher()
 	{
-		std::cout << "Stopping WebSocket Server... ";
+		spdlog::get("console")->info("Stopping WebSocket Server...");
 		server_.stop();
 		thread_.join();
-		std::cout << "OK!" << std::endl;
+		spdlog::get("console")->info("WebSocket Server stopped successfully!");
 	}
 	
 	void fire(const ElementEvent& event, int id)
@@ -45,9 +46,9 @@ public:
 		message["id"] = id;
 		message["op"] = event.get_state_as_string();
 		message["pos"] = Json::Value();
-		message["pos"].append(std::get<0>(man_->getElement(id)));
-		message["pos"].append(std::get<1>(man_->getElement(id)));
-		message["angle"] = std::get<2>(man_->getElement(id));
+		message["pos"].append(std::get<0>(spc_->getElement(id)));
+		message["pos"].append(std::get<1>(spc_->getElement(id)));
+		message["angle"] = std::get<2>(spc_->getElement(id));
 		
         std::lock_guard<std::mutex> lock(mutex_);    
         for (auto it : connections_)

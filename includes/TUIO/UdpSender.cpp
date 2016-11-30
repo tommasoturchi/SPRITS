@@ -26,7 +26,7 @@ UdpSender::UdpSender() {
 		long unsigned int ip = GetHostByName("localhost");
 		socket = new UdpTransmitSocket(IpEndpointName(ip, 3333));
 		buffer_size = MAX_UDP_SIZE;
-		std::cout << "TUIO/UDP messages to " << "127.0.0.1@3333" << std::endl;
+		// std::cout << "TUIO/UDP messages to " << "127.0.0.1@3333" << std::endl;
 	} catch (std::exception &e) { 
 		std::cout << "could not create UDP socket" << std::endl;
 		socket = NULL;
@@ -44,7 +44,7 @@ UdpSender::UdpSender(const char *host, int port) {
 		}
 		long unsigned int ip = GetHostByName(host);
 		socket = new UdpTransmitSocket(IpEndpointName(ip, port));
-		std::cout << "TUIO/UDP messages to " << host << "@" << port << std::endl;
+		// std::cout << "TUIO/UDP messages to " << host << "@" << port << std::endl;
 	} catch (std::exception &e) { 
 		std::cout << "could not create UDP socket" << std::endl;
 		socket = NULL;
@@ -60,7 +60,7 @@ UdpSender::UdpSender(const char *host, int port, int size) {
 		socket = new UdpTransmitSocket(IpEndpointName(ip, port));
 		if (buffer_size>MAX_UDP_SIZE) buffer_size = MAX_UDP_SIZE;
 		else if (buffer_size<MIN_UDP_SIZE) buffer_size = MIN_UDP_SIZE;
-		std::cout << "TUIO/UDP messages to " << host << "@" << port << std::endl;
+		// std::cout << "TUIO/UDP messages to " << host << "@" << port << std::endl;
 	} catch (std::exception &e) { 
 		std::cout << "could not create UDP socket" << std::endl;
 		socket = NULL;
