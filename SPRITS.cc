@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 	auto console = spdlog::stdout_logger_mt("console", true);
 	try
 	{
-		std::map<std::string, docopt::value> args = docopt::docopt(USAGE, { argv + 1, argv + argc }, true, "SPRITS 1.1");
+		std::map<std::string, docopt::value> args = docopt::docopt(USAGE, { argv + 1, argv + argc }, true, "SPRITS 1.0");
 		console->set_level(args["--verbose"].asBool()?spdlog::level::debug:spdlog::level::info);
 		signal(SIGINT, [](int nSig) { stop = true; });
 		Camera* cam = new OpenNI(args["--crop"].asBool(), args["--debug"].asBool());
@@ -60,7 +60,6 @@ int main(int argc, char **argv)
 			publishers.push_back(new WebSocketPublisher(spc));
 		while (!stop)
 			cam->update();
-		cv::destroyAllWindows();
 		for (auto const& pub : publishers)
 			delete pub;
 		delete fpsobs;

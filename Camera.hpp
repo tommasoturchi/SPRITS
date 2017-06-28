@@ -73,8 +73,9 @@ namespace SPRITS
 			{
 				if (boost::get<0>(croppingData_) && (boost::get<1>(croppingData_) != boost::tuple<int,int>()) && (boost::get<2>(croppingData_) != boost::tuple<int,int>()))
 					cv::rectangle(debugFrame_, cv::Point(boost::get<0>(boost::get<1>(croppingData_)), boost::get<1>(boost::get<1>(croppingData_))), cv::Point(boost::get<0>(boost::get<2>(croppingData_)), boost::get<1>(boost::get<2>(croppingData_))), cv::Scalar(0, 0, 255), 3, 8, 0);
+				cv::putText(debugFrame_, "Press ENTER to submit.", cv::Point((debugFrame_.cols - cv::getTextSize("Press ENTER to submit.", cv::FONT_HERSHEY_SIMPLEX, 0.6, 3, NULL).width)/2, 25), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255)); // Add dynamic resizing
 				cv::imshow("Crop", debugFrame_);
-				if (cv::waitKey(1) == 1048586)
+				if ((cv::waitKey(1) & 0xFF) == 10)
 				{
 					crop_ = false;
 					cv::destroyWindow("Crop");
