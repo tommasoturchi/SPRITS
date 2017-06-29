@@ -50,9 +50,11 @@ public:
 		message["pos"].append(std::get<1>(spc_->getElement(id)));
 		message["angle"] = std::get<2>(spc_->getElement(id));
 		
-        std::lock_guard<std::mutex> lock(mutex_);    
+        std::lock_guard<std::mutex> lock(mutex_);
         for (auto it : connections_)
             server_.send(it, Json::FastWriter().write(message), websocketpp::frame::opcode::text);
+
+        spdlog::get("console")->debug("WebSocket message {} sent.", Json::FastWriter().write(message));
 	}
 };
 

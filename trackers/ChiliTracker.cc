@@ -41,8 +41,8 @@ public:
 			std::set_difference(alive.begin(), alive.end(), tracked.begin(), tracked.end(), std::inserter(notfound, notfound.end()));
 			for (const auto & id : notfound)
 			{
-				spc_->setElement(id);
 				alive.erase(id);
+				spc_->setElement(id);
 			}
 		}
 	}
