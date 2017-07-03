@@ -8,6 +8,7 @@
 using namespace SPRITS;
 
 #define TIMEOUT 10
+#define RECORD true
 
 struct FPSCounter
 {
@@ -31,6 +32,7 @@ template<typename T> class Debug : public CameraObserver<T>
 private:
 	std::map<NewFrameEvent, FPSCounter> counters_;
 	std::map<NewFrameEvent, clock_t> start_;
+	cv::VideoWriter out;
 public:
 	Debug(Camera *cam, Space<T> *spc, const NewFrameEvent& event) : CameraObserver<T>(cam, spc, event)
 	{
@@ -57,6 +59,16 @@ public:
 			spdlog::get("console")->info("{} sensor recording at {} FPS.", (event==NewFrameEvent::COLOR?"Color":"Depth"), counters_[event].getFPS());
 			start_[event] = end;
 		}
+
+		if ((RECORD) && (!out.isOpened()))
+		{
+			static char vname[20];
+			time_t now = time(0);
+			strftime(vname, sizeof(vname), "%Y%m%d_%H%M%S.avi", localtime(&now));
+			out = cv::VideoWriter(vname, CV_FOURCC('D', 'I', 'V', 'X'), 15.0, cv::Size(frame.cols, frame.rows), true);
+		}
+		if ((event == NewFrameEvent::COLOR) && (RECORD) && (out.isOpened()))
+			out.write(frame);
 	}
 };
 
