@@ -8,7 +8,6 @@
 using namespace SPRITS;
 
 #define TIMEOUT 10
-#define RECORD true
 
 struct FPSCounter
 {
@@ -32,15 +31,16 @@ template<typename T> class Debug : public CameraObserver<T>
 private:
 	std::map<NewFrameEvent, FPSCounter> counters_;
 	std::map<NewFrameEvent, clock_t> start_;
+	bool record;
 	cv::VideoWriter out;
 public:
-	Debug(Camera *cam, Space<T> *spc, const NewFrameEvent& event) : CameraObserver<T>(cam, spc, event)
+	Debug(Camera *cam, Space<T> *spc, bool record, const NewFrameEvent& event) : record(record), CameraObserver<T>(cam, spc, event)
 	{
 		counters_[event] = FPSCounter();
 	}
 	
 	template<typename E, typename... Events>
-	Debug(Camera *cam, Space<T> *spc, E event, Events... events) : CameraObserver<T>(cam, spc, event, events...)
+	Debug(Camera *cam, Space<T> *spc, bool record, E event, Events... events) : record(record), CameraObserver<T>(cam, spc, event, events...)
 	{
 		for (auto event : { event, [](const NewFrameEvent& event) { return event; }(std::forward<Events>(events)...) })
 		{
@@ -60,14 +60,14 @@ public:
 			start_[event] = end;
 		}
 
-		if ((RECORD) && (!out.isOpened()))
+		if ((record) && (!out.isOpened()))
 		{
 			static char vname[20];
 			time_t now = time(0);
 			strftime(vname, sizeof(vname), "%Y%m%d_%H%M%S.avi", localtime(&now));
 			out = cv::VideoWriter(vname, CV_FOURCC('D', 'I', 'V', 'X'), 15.0, cv::Size(frame.cols, frame.rows), true);
 		}
-		if ((event == NewFrameEvent::COLOR) && (RECORD) && (out.isOpened()))
+		if ((event == NewFrameEvent::COLOR) && (record) && (out.isOpened()))
 			out.write(frame);
 	}
 };
@@ -75,8 +75,8 @@ public:
 class Debug3DTracker : public Debug<std::tuple<double, double, double>>
 {
 public:
-	Debug3DTracker(Camera *cam, Space<std::tuple<double, double, double>> *spc, const NewFrameEvent& event) : Debug<std::tuple<double, double, double>>(cam, spc, event) { }
+	Debug3DTracker(Camera *cam, Space<std::tuple<double, double, double>> *spc, bool record, const NewFrameEvent& event) : Debug<std::tuple<double, double, double>>(cam, spc, record, event) { }
 	
 	template<typename E, typename... Events>
-	Debug3DTracker(Camera *cam, Space<std::tuple<double, double, double>> *spc, E event, Events... events) : Debug<std::tuple<double, double, double>>(cam, spc, event, events...) { }
+	Debug3DTracker(Camera *cam, Space<std::tuple<double, double, double>> *spc, bool record, E event, Events... events) : Debug<std::tuple<double, double, double>>(cam, spc, record, event, events...) { }
 };

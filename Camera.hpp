@@ -128,7 +128,7 @@ namespace SPRITS
 	public:
 		CameraObserverDecorator(CameraObserver<T> *component, const NewFrameEvent& event) : CameraObserver<T>(component->cam_, component->spc_), component_(component)
 		{
-			this->con_[event] = this->cam_->subscribe(event, boost::bind(&CameraObserver<T>::fire, this, _1, _2), boost::signals2::at_front);
+			this->con_[event] = component->cam_->subscribe(event, boost::bind(&CameraObserverDecorator<T>::fire, this, _1, _2), boost::signals2::at_front);
 		}
 		
 		virtual ~CameraObserverDecorator()
@@ -140,7 +140,7 @@ namespace SPRITS
 		CameraObserverDecorator(CameraObserver<T> *component, E event, Events... events) : CameraObserver<T>(component->cam_, component->spc_), component_(component)
 		{
 			for (auto event : { event, [](const NewFrameEvent& event) { return event; }(std::forward<Events>(events)...) })
-				this->con_[event] = this->cam_->subscribe(event, boost::bind(&CameraObserver<T>::fire, this, _1, _2), boost::signals2::at_front);
+				this->con_[event] = component->cam_->subscribe(event, boost::bind(&CameraObserverDecorator<T>::fire, this, _1, _2), boost::signals2::at_front);
 		}
 	};
 

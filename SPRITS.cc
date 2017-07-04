@@ -31,15 +31,17 @@ R"(Simple Pluggable Range Imaging Tracking Server.
 
     Usage:
       SPRITS [options]
+      SPRITS [options] (OpenNI|VideoStream)
 
     Options:
-      --help       Show this screen.
-      --crop       Crop camera image.
-      --debug      Enable debug window.
-      --tuio       Add the TUIO publisher.
-      --verbose    Enable verbose logging.
-      --websocket  Add the Websocket publisher.
-      --version    Show version.
+      --help           Show this screen.
+      --crop           Crop camera image.
+      --debug          Enable debug window.
+      --record         Enable camera recording.
+      --tuio           Enable TUIO publisher.
+      --verbose        Enable verbose logging.
+      --websocket      Enable Websocket publisher.
+      --version        Show version.
 )";
 
 int main(int argc, char **argv)
@@ -50,9 +52,9 @@ int main(int argc, char **argv)
 		std::map<std::string, docopt::value> args = docopt::docopt(USAGE, { argv + 1, argv + argc }, true, "SPRITS 1.0");
 		console->set_level(args["--verbose"].asBool()?spdlog::level::debug:spdlog::level::info);
 		signal(SIGINT, [](int nSig) { stop = true; });
-		Camera* cam = new OpenNI(args["--crop"].asBool(), args["--debug"].asBool());
+		Camera* cam = args["OpenNI"].asBool()?(Camera*)new OpenNI(args["--crop"].asBool(), args["--debug"].asBool()):(Camera*)new VideoStream(args["--crop"].asBool(), args["--debug"].asBool());
 		Space<std::tuple<double, double, double>>* spc = new Plane();
-		CameraObserver<std::tuple<double, double, double>>* fpsobs = new ChiliTracker(new Debug3DTracker(cam, spc, NewFrameEvent::COLOR, NewFrameEvent::DEPTH));
+		CameraObserver<std::tuple<double, double, double>>* fpsobs = new ChiliTracker(new Debug3DTracker(cam, spc, args["--record"].asBool(), NewFrameEvent::COLOR));
 		std::list<SpaceObserver<std::tuple<double, double, double>>*> publishers;
 		if (args["--tuio"].asBool())
 			publishers.push_back(new TUIOPublisher(spc));
