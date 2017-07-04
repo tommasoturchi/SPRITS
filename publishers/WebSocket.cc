@@ -19,14 +19,14 @@ private:
     std::set<websocketpp::connection_hdl,std::owner_less<websocketpp::connection_hdl>> connections_;
     std::mutex mutex_;
 public:
-	WebSocketPublisher(Space<std::tuple<double, double, double>>* spc) : SpaceObserver<std::tuple<double, double, double>>(spc) {
+	WebSocketPublisher(Space<std::tuple<double, double, double>>* spc, int port = 9002) : SpaceObserver<std::tuple<double, double, double>>(spc) {
 		spdlog::get("console")->info("Starting WebSocket Server...");
 		server_.clear_access_channels(websocketpp::log::alevel::all);
 		server_.init_asio();
 		server_.set_reuse_addr(true);
 		server_.set_open_handler(std::bind<void>([this](websocketpp::connection_hdl hdl){ std::lock_guard<std::mutex> lock(mutex_); connections_.insert(hdl); }, std::placeholders::_1));
 		server_.set_close_handler(std::bind<void>([this](websocketpp::connection_hdl hdl){ std::lock_guard<std::mutex> lock(mutex_); connections_.erase(hdl); }, std::placeholders::_1));
-        server_.listen(9002);
+        server_.listen(port);
 		server_.start_accept();
 		thread_ = std::thread([this] { server_.run(); });
 		spdlog::get("console")->info("WebSocket Server started successfully!");

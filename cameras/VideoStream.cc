@@ -21,8 +21,6 @@ protected:
 		cropOrigin = origin;
 		cropTarget = target;
 		cropped = true;
-		//capture->set(CV_CAP_PROP_FRAME_WIDTH, 1280);
-		//capture->set(CV_CAP_PROP_FRAME_HEIGHT, 720);
 		spdlog::get("console")->debug("Cropping data received.");
 	}
 	void resetCropping()
@@ -31,14 +29,19 @@ protected:
 		spdlog::get("console")->debug("Cropping data reset requested.");
 	}
 public:
-	VideoStream(bool crop = false, bool debug = false) : Camera(crop, debug)
+	VideoStream(bool crop = false, bool debug = false) : VideoStream(1280, 720, crop, debug) { };
+
+	VideoStream(int resX, int resY, bool crop = false, bool debug = false) : Camera(crop, debug)
 	{
 		spdlog::get("console")->info("Opening VideoCapture device...");
 		capture = new cv::VideoCapture(0);
 		if (!capture->isOpened())
 			throw std::runtime_error("Unable to initialise video capture!");
 		spdlog::get("console")->info("VideoCapture device opened successfully!");
+		capture->set(CV_CAP_PROP_FRAME_WIDTH, resX);
+		capture->set(CV_CAP_PROP_FRAME_HEIGHT, resY);
 	}
+
 	~VideoStream()
 	{
 		spdlog::get("console")->info("Closing VideoCapture device...");
@@ -47,6 +50,7 @@ public:
 		std::cout.clear();
 		spdlog::get("console")->info("VideoCapture device closed successfully!");
 	}
+
 	void update()
 	{
 		if (capture->read(inputImage))

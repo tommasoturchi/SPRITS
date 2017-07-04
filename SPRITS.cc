@@ -34,14 +34,14 @@ R"(Simple Pluggable Range Imaging Tracking Server.
       SPRITS [options] (OpenNI|VideoStream)
 
     Options:
-      --help           Show this screen.
-      --crop           Crop camera image.
-      --debug          Enable debug window.
-      --record         Enable camera recording.
-      --tuio           Enable TUIO publisher.
-      --verbose        Enable verbose logging.
-      --websocket      Enable Websocket publisher.
-      --version        Show version.
+      --help               Show this screen.
+      --crop               Crop camera image.
+      --debug              Enable debug window.
+      --record             Enable camera recording.
+      --tuio               Enable TUIO publisher.
+      --verbose            Enable verbose logging.
+      --websocket=<port>   Enable Websocket publisher [default port: 9002].
+      --version            Show version.
 )";
 
 int main(int argc, char **argv)
@@ -58,8 +58,10 @@ int main(int argc, char **argv)
 		std::list<SpaceObserver<std::tuple<double, double, double>>*> publishers;
 		if (args["--tuio"].asBool())
 			publishers.push_back(new TUIOPublisher(spc));
-		if (args["--websocket"].asBool())
+		if ((args["--websocket"].isBool()) && (args["--websocket"].asBool()))
 			publishers.push_back(new WebSocketPublisher(spc));
+		else
+			publishers.push_back(new WebSocketPublisher(spc, boost::lexical_cast<int>(args["--websocket"].asString())));
 		while (!stop)
 			cam->update();
 		for (auto const& pub : publishers)
